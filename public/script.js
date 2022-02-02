@@ -4,6 +4,8 @@ import * as THREE from "https://cdn.skypack.dev/three@0.136.0";
 
 import { PointerLockControls } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/PointerLockControls.js";
 
+import { FBXLoader } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/loaders/FBXLoader.js";
+
 let scene, camera, renderer, controls;
 let keyboard = {};
 let player = {
@@ -28,7 +30,7 @@ class Wall {
     this.sy = sy;
     this.options = options;
     if(!options.color) {
-      options.color = new Color("#e5e5e5");
+      options.color = new Color("#50B2C0");
     }
     this.material = new THREE.MeshBasicMaterial();
     this.geometry = new THREE.BoxGeometry(sx, sy, options.clip ? 0.07 : 0.08);
@@ -51,9 +53,9 @@ class Wall {
     
     this.direction = new THREE.Vector3();
     this.mesh.getWorldDirection(this.direction);
-    if(this.direction.x === Math.max(this.direction.x, this.direction.y, this.direction.z)) {
+    if(Math.abs(this.direction.x) === Math.max(Math.abs(this.direction.x), Math.abs(this.direction.y), Math.abs(this.direction.z))) {
       this.mesh.material.color = new THREE.Color(options.color.light || 0x00ff00);
-    }else if(this.direction.y === Math.max(this.direction.x, this.direction.y, this.direction.z)) {
+    }else if(Math.abs(this.direction.y) === Math.max(Math.abs(this.direction.x), Math.abs(this.direction.y), Math.abs(this.direction.z))) {
       this.mesh.material.color = new THREE.Color(options.color.dark || 0x00ff00);      
     }else {
       this.mesh.material.color = new THREE.Color(options.color.hex || 0x00ff00);
@@ -72,7 +74,7 @@ class Floor {
     this.sy = sy;
     this.options = options;
     if(!options.color) {
-      options.color = new Color("#e5e5e5");
+      options.color = new Color("#50B2C0");
     }
 
     this.texture = new THREE.TextureLoader().load(options.map || "/assets/textures/floor.jpg");
@@ -102,14 +104,38 @@ class Floor {
 
     this.direction = new THREE.Vector3();
     this.mesh.getWorldDirection(this.direction);
-    if(this.direction.x === Math.max(this.direction.x, this.direction.y, this.direction.z)) {
+    if(Math.abs(this.direction.x) === Math.max(Math.abs(this.direction.x), Math.abs(this.direction.y), Math.abs(this.direction.z))) {
       this.mesh.material.color = new THREE.Color(options.color.light || 0x00ff00);
-    }else if(this.direction.y === Math.max(this.direction.x, this.direction.y, this.direction.z)) {
+    }else if(Math.abs(this.direction.y) === Math.max(Math.abs(this.direction.x), Math.abs(this.direction.y), Math.abs(this.direction.z))) {
       this.mesh.material.color = new THREE.Color(options.color.dark || 0x00ff00);      
     }else {
       this.mesh.material.color = new THREE.Color(options.color.hex || 0x00ff00);
     }
     scene.add(this.mesh);
+  }
+}
+
+class Lamp {
+  constructor(x, y, z, size) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.size = size;
+    this.loader = new FBXLoader();
+    this.loader.setPath("/assets/lamp/");
+    this.loader.load("lamp.fbx", fbx => {
+      fbx.scale.setScalar(size);
+      fbx.traverse(child => {
+        if(child.isMesh) {
+          child.material = new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load("assets/lamp/lamp_texture.png")});
+        }
+      });
+      fbx.position.x = x;
+      fbx.position.y = y;
+      fbx.position.z = z;
+
+      scene.add(fbx);
+    });
   }
 }
 
@@ -125,7 +151,6 @@ class Color {
 }
 
 let blue = new Color("#50B2C0");
-let beigh = new Color("#FEEFDD");
 
 // Start
 function Start() {
@@ -203,36 +228,104 @@ function Movement() {
 }
 
 function BuildHouse() {
+  new  Lamp(0, 0, 4, .34);
   // Master Bedroom
-  new Wall(0, 0, 0, 35, 4, {
-    color: blue
-  });
+  new Wall(0, 0, 0, 35, 4);
   new Wall(3.5*5, 0, 3.5*3, 3.5*6, 4, {
     rotation: {
       y: 90
-    },
-    color: blue
+    }
   });
   new Wall(-3.5*5, 0, 3.5*3, 3.5*6, 4, {
     rotation: {
       y: 90
-    },
-    color: blue
+    }
   });
-  new Wall(-3.5*2.875, 0, 3.5*6, 3.5*4.25, 4, {
-    color: blue
+  new Wall(-3.5*2.875, 0, 3.5*6, 3.5*4.25, 4);
+  new Wall(3.5*2.875, 0, 3.5*6, 3.5*4.25, 4);
+  new Floor(0, 0, 3.5*3, 10*3.5, 6*3.5);
+  new Floor(0, 4, 3.5*3, 10*3.5, 6*3.5);
+
+  // Hall
+  new Wall(.75*3.5, 0, 10*3.5, 3.5*8, 4, {
+    rotation: {
+      y: 90
+    }   
   });
-  new Wall(3.5*2.875, 0, 3.5*6, 3.5*4.25, 4, {
-    color: blue
-  });
-  new Floor(0, 0, 3.5*3, 10*3.5, 6*3.5, {
-    color: beigh
-  });
-  new Floor(0, 4, 3.5*3, 10*3.5, 6*3.5, {
-    color: blue
+  new Wall(-.75*3.5, 0, 6.5*3.5, 3.5*1, 4, {
+    rotation: {
+      y: 90
+    }
   });
 
-  
+  new Wall(-.75*3.5, 0, 10*3.5, 3.5*4, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(.75*3.5, 0, 17.375*3.5, 5.25*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(.75*3.5, 0, 21.5*3.5, 1*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Floor(0, 0, 14*3.5, 1.5*3.5, 16*3.5);
+  new Floor(0, 4, 14*3.5, 1.5*3.5, 16*3.5);
+
+  // Guest Bedroom
+  new Wall(-3.25*3.5, 0, 12*3.5, 5*3.5, 4);
+  new Wall(-3.25*3.5, 0, 18*3.5, 5*3.5, 4);
+  new Wall(-5.75*3.5, 0, 15*3.5, 6*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(-.75*3.5, 0, 14.625*3.5, 5.25*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Floor(-3.25*3.5, 0, 15*3.5, 5*3.5, 6*3.5);
+  new Floor(-3.25*3.5, 4, 15*3.5, 5*3.5, 6*3.5);
+
+  // Closet
+  new Wall(1.75*3.5, 0, 14*3.5, 3.5*2, 4);
+  new Wall(2.75*3.5, 0, 15*3.5, 3.5*2, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(1.75*3.5, 0, 16*3.5, 3.5*2, 4);
+  new Floor(1.75*3.5, 0, 15*3.5, 2*3.5, 2*3.5);
+  new Floor(1.75*3.5, 4, 15*3.5, 2*3.5, 2*3.5);
+
+  // Backroom
+  new Wall(-.75*3.5, 0, 23.5*3.5, 11*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(.375*3.5, 0, 22*3.5, .75*3.5, 4);
+  new Wall(0, 0, 24*3.5, 4*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(1.5*3.5, 0, 26*3.5, 3*3.5, 4);
+  new Wall(3*3.5, 0, 27.5*3.5, 3*3.5, 4, {
+    rotation: {
+      y: 90
+    }
+  });
+  new Wall(1.125*3.5, 0, 29*3.5, 3.75*3.5, 4);
+  new Floor(-.375*3.5, 0, 24*3.5, .75*3.5, 4*3.5);
+  new Floor(-.375*3.5, 4, 24*3.5, .75*3.5, 4*3.5);
+  new Floor(1.125*3.5, 0, 27.5*3.5, 3.75*3.5, 3*3.5);
+  new Floor(1.125*3.5, 4, 27.5*3.5, 3.75*3.5, 3*3.5);
 }
 
 window.onload = function() {
