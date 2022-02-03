@@ -6,11 +6,12 @@ import { PointerLockControls } from "https://cdn.skypack.dev/three@0.136.0/examp
 
 import { FBXLoader } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/loaders/FBXLoader.js";
 
-let scene, camera, renderer, controls;
+let scene, camera, renderer, controls, clock;
 
 let keyboard = {};
 let player = {
-  speed: .23
+  speed: .23,
+  feetRay: new THREE.Raycaster()
 }
 
 let v = .2;
@@ -31,7 +32,7 @@ class Wall {
     this.sy = sy;
     this.options = options;
     if(!options.color) {
-      options.color = new Color("#50B2C0");
+      options.color = new Color("#686868");
     }
     this.material = new THREE.MeshBasicMaterial();
     this.geometry = new THREE.BoxGeometry(sx, sy, options.clip ? 0.07 : 0.08);
@@ -45,9 +46,7 @@ class Wall {
       this.mesh.rotation.y = options.rotation.y * Math.PI/180 || 0;
       this.mesh.rotation.z = options.rotation.z * Math.PI/180 || 0;
     }
-  
-    //this.mesh.material.map.repeat.set(sx/sy, 1);
-
+    
     if(options.clip) {
       this.mesh.clip = options.clip;
     }
@@ -75,7 +74,7 @@ class Floor {
     this.sy = sy;
     this.options = options;
     if(!options.color) {
-      options.color = new Color("#50B2C0");
+      options.color = new Color("#686868");
     }
 
     this.texture = new THREE.TextureLoader().load(options.map || "/assets/textures/floor.jpg");
@@ -122,6 +121,8 @@ class Lamp {
     this.y = y;
     this.z = z;
     this.size = size;
+    this.downed = false;
+    var scope = this;
     this.loader = new FBXLoader();
     this.loader.setPath("/assets/lamp/");
     this.loader.load("lamp.fbx", fbx => {
@@ -136,9 +137,35 @@ class Lamp {
       fbx.position.x = x;
       fbx.position.y = y;
       fbx.position.z = z;
-
+      scope.model = fbx;
+      scope.model.canFall = true;
+      scope.model.scope = scope;
       scene.add(fbx);
+      blocks.push(scope.model);
     });
+  }
+  fall() {
+    if(!this.downed) {
+      this.downed = true;
+      var scope = this;
+      var playerPos = {
+        x: camera.position.x,
+        z: camera.position.z
+      };
+      var rot = 0;
+      var fallAnim = setInterval(function(){
+        scope.model.rotateOnAxis(new THREE.Vector3(playerPos.x - scope.model.position.x, 0, playerPos.z - scope.model.position.z).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -90 * Math.PI/180), 1 * Math.PI/180);
+        if(rot >= 90) {
+          clearInterval(fallAnim);
+          setTimeout(function() {
+            scope.model.rotateOnAxis(new THREE.Vector3(playerPos.x - scope.model.position.x, 0, playerPos.z - scope.model.position.z).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), -90 * Math.PI/180), -90 * Math.PI/180);
+            scope.downed = false;
+          }, 6000);
+        }else {
+          rot++;
+        }
+      }, 1);
+    }
   }
 }
 
@@ -153,12 +180,14 @@ class Color {
   }
 }
 
-let blue = new Color("#50B2C0");
+let black = new Color("#181818");
+let white = new Color("#E7E7E7");
+let grey = new Color("#686868");
+let blue = new Color("#2e5984");
 
 // Start
 function Start() {
   // Scene
-
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x091420);
 
@@ -175,6 +204,8 @@ function Start() {
   camera.position.z = 5;
   camera.position.y = 2;
 
+  clock = new THREE.Clock();
+
   BuildHouse();
 }
 
@@ -182,6 +213,18 @@ function Start() {
 function Update() {
   requestAnimationFrame(Update);
   Movement();
+  player.feetRay.set(camera.position, new THREE.Vector3(0, -1, 0));
+
+  // calculate objects intersecting the picking ray
+	const intersects = player.feetRay.intersectObjects( scene.children );
+
+	for ( let i = 0; i < intersects.length; i ++ ) {
+    if(intersects[i].distance > 2.05) {
+      camera.position.y -= .1;
+    }else if(intersects[i].distance < 1.95) {
+      camera.position.y += .1;
+    }
+	}
   renderer.render(scene, camera);
 };
 
@@ -200,136 +243,202 @@ function Movement() {
       controls.moveRight(player.speed/1.5);
     }
     for (let i = 0; i < blocks.length; i++) {
+      blocks[i].isCollision = true;
       let boundingBox = new THREE.Box3().setFromObject(blocks[i]);
       let size = new THREE.Vector3();
+      let center = new THREE.Vector3();
       boundingBox.getSize(size);
+      boundingBox.getCenter(center);
       if(blocks[i].clip) {
         v = .1;
       }else {
         v = .2;
       }
       if (
-        camera.position.x <= blocks[i].position.x + size.x / 2 + v &&
-        camera.position.x >= blocks[i].position.x - size.x / 2 - v &&
-        camera.position.z <= blocks[i].position.z + size.z / 2 + v &&
-        camera.position.z >= blocks[i].position.z - size.z / 2 - v
+        camera.position.x <= center.x + size.x / 2 + v &&
+        camera.position.x >= center.x - size.x / 2 - v &&
+        camera.position.z <= center.z + size.z / 2 + v &&
+        camera.position.z >= center.z - size.z / 2 - v &&
+        camera.position.y <= center.y + size.y / 2 + v &&
+        camera.position.y >= center.y - size.y / 2 - v
       ) {
-        if(keyboard[87]) {
-          controls.moveForward(-player.speed);
-        }
-        if(keyboard[83]) {
-          controls.moveForward(player.speed);
-        }
-        if(keyboard[65]) {
-          controls.moveRight(player.speed/1.5);
-        }
-        if(keyboard[68]) {
-          controls.moveRight(-player.speed/1.5);
+        if(blocks[i].canFall) {
+          blocks[i].scope.fall();
+        }else {
+          if(keyboard[87]) {
+            controls.moveForward(-player.speed);
+          }
+          if(keyboard[83]) {
+            controls.moveForward(player.speed);
+          }
+          if(keyboard[65]) {
+            controls.moveRight(player.speed/1.5);
+          }
+          if(keyboard[68]) {
+            controls.moveRight(-player.speed/1.5);
+          }
         }
       }
     }
   }
 }
-
 function BuildHouse() {
-  new  Lamp(0, 0, 4, .2);
+  // ***** MAIN FLOOR *****
   // Master Bedroom
-  new Wall(0, 0, 0, 35, 4);
+  new Lamp(0, 0, 4, .2);
+  new Wall(0, 0, 0, 35, 4, {
+    color: white
+  });
   new Wall(3.5*5, 0, 3.5*3, 3.5*6, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
   new Wall(-3.5*5, 0, 3.5*3, 3.5*6, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Wall(-3.5*2.875, 0, 3.5*6, 3.5*4.25, 4);
-  new Wall(3.5*2.875, 0, 3.5*6, 3.5*4.25, 4);
-  new Floor(0, 0, 3.5*3, 10*3.5, 6*3.5);
-  new Floor(0, 4, 3.5*3, 10*3.5, 6*3.5);
+  new Wall(-3.5*2.875, 0, 3.5*6, 3.5*4.25, 4, {
+    color: white
+  });
+  new Wall(3.5*2.875, 0, 3.5*6, 3.5*4.25, 4, {
+    color: white
+  });
+  new Floor(0, 0, 3.5*3, 10*3.5, 6*3.5, {
+    color: black
+  });
+  new Floor(0, 4, 3.5*3, 10*3.5, 6*3.5, {
+    color: grey
+  });
 
   // Hall
   new Wall(.75*3.5, 0, 10*3.5, 3.5*8, 4, {
     rotation: {
       y: 90
-    }   
+    },
+    color: white 
   });
   new Wall(-.75*3.5, 0, 6.5*3.5, 3.5*1, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
 
   new Wall(-.75*3.5, 0, 10*3.5, 3.5*4, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
   new Wall(.75*3.5, 0, 17.375*3.5, 5.25*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
   new Wall(.75*3.5, 0, 21.5*3.5, 1*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Floor(0, 0, 14*3.5, 1.5*3.5, 16*3.5);
-  new Floor(0, 4, 14*3.5, 1.5*3.5, 16*3.5);
+  new Floor(0, 0, 14*3.5, 1.5*3.5, 16*3.5, {
+    color: black
+  });
+  new Floor(0, 4, 14*3.5, 1.5*3.5, 16*3.5, {
+    color: grey
+  });
 
   // Guest Bedroom
-  new Wall(-3.25*3.5, 0, 12*3.5, 5*3.5, 4);
-  new Wall(-3.25*3.5, 0, 18*3.5, 5*3.5, 4);
+  new Wall(-3.25*3.5, 0, 12*3.5, 5*3.5, 4, {
+    color: white
+  });
+  new Wall(-3.25*3.5, 0, 18*3.5, 5*3.5, 4, {
+    color: white
+  });
   new Wall(-5.75*3.5, 0, 15*3.5, 6*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
   new Wall(-.75*3.5, 0, 14.625*3.5, 5.25*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Floor(-3.25*3.5, 0, 15*3.5, 5*3.5, 6*3.5);
-  new Floor(-3.25*3.5, 4, 15*3.5, 5*3.5, 6*3.5);
+  new Floor(-3.25*3.5, 0, 15*3.5, 5*3.5, 6*3.5, {
+    color: black
+  });
+  new Floor(-3.25*3.5, 4, 15*3.5, 5*3.5, 6*3.5, {
+    color: grey
+  });
 
   // Closet
-  new Wall(1.75*3.5, 0, 14*3.5, 3.5*2, 4);
+  new Wall(1.75*3.5, 0, 14*3.5, 3.5*2, 4, {
+    color: white
+  });
   new Wall(2.75*3.5, 0, 15*3.5, 3.5*2, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Wall(1.75*3.5, 0, 16*3.5, 3.5*2, 4);
-  new Floor(1.75*3.5, 0, 15*3.5, 2*3.5, 2*3.5);
-  new Floor(1.75*3.5, 4, 15*3.5, 2*3.5, 2*3.5);
+  new Wall(1.75*3.5, 0, 16*3.5, 3.5*2, 4, {
+    color: white
+  });
+  new Floor(1.75*3.5, 0, 15*3.5, 2*3.5, 2*3.5, {
+    color: black
+  });
+  new Floor(1.75*3.5, 4, 15*3.5, 2*3.5, 2*3.5, {
+    color: grey
+  });
 
   // Backroom
   new Wall(-.75*3.5, 0, 23.5*3.5, 11*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Wall(.375*3.5, 0, 22*3.5, .75*3.5, 4);
+  new Wall(.375*3.5, 0, 22*3.5, .75*3.5, 4, {
+    color: white
+  });
   new Wall(0, 0, 24*3.5, 4*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Wall(1.5*3.5, 0, 26*3.5, 3*3.5, 4);
+  new Wall(1.5*3.5, 0, 26*3.5, 3*3.5, 4, {
+    color: white
+  });
   new Wall(3*3.5, 0, 27.5*3.5, 3*3.5, 4, {
     rotation: {
       y: 90
-    }
+    },
+    color: white
   });
-  new Wall(1.125*3.5, 0, 29*3.5, 3.75*3.5, 4);
-  new Floor(-.375*3.5, 0, 24*3.5, .75*3.5, 4*3.5);
-  new Floor(-.375*3.5, 4, 24*3.5, .75*3.5, 4*3.5);
-  new Floor(1.125*3.5, 0, 27.5*3.5, 3.75*3.5, 3*3.5);
-  new Floor(1.125*3.5, 4, 27.5*3.5, 3.75*3.5, 3*3.5);
+  new Wall(1.125*3.5, 0, 29*3.5, 3.75*3.5, 4, {
+    color: white
+  });
+  new Floor(-.375*3.5, 0, 24*3.5, .75*3.5, 4*3.5, {
+    color: black
+  });
+  new Floor(-.375*3.5, 4, 24*3.5, .75*3.5, 4*3.5, {
+    color: grey
+  });
+  new Floor(1.125*3.5, 0, 27.5*3.5, 3.75*3.5, 3*3.5, {
+    color: black
+  });
+  new Floor(1.125*3.5, 4, 27.5*3.5, 3.75*3.5, 3*3.5, {
+    color: grey
+  });
 }
 
 window.onload = function() {
@@ -339,6 +448,9 @@ window.onload = function() {
 
 window.onkeydown = function(e) {
   keyboard[e.keyCode] = true;
+  if(e.key === "f") {
+    l1.fall();
+  }
 }
 
 window.onkeyup = function(e) {
@@ -347,4 +459,11 @@ window.onkeyup = function(e) {
 
 window.onclick = function() {
   controls.lock();
+}
+
+window.onresize = () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize( window.innerWidth, window.innerHeight );
 }
