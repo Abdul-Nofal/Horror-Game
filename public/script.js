@@ -7,6 +7,7 @@ import { PointerLockControls } from "https://cdn.skypack.dev/three@0.136.0/examp
 import { FBXLoader } from "https://cdn.skypack.dev/three@0.136.0/examples/jsm/loaders/FBXLoader.js";
 
 let scene, camera, renderer, controls;
+
 let keyboard = {};
 let player = {
   speed: .23
@@ -128,6 +129,8 @@ class Lamp {
       fbx.traverse(child => {
         if(child.isMesh) {
           child.material = new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load("assets/lamp/lamp_texture.png")});
+          child.material.map.magFilter = THREE.NearestFilter;
+          child.material.map.minFilter = THREE.LinearMipMapLinearFilter;
         }
       });
       fbx.position.x = x;
@@ -155,6 +158,7 @@ let blue = new Color("#50B2C0");
 // Start
 function Start() {
   // Scene
+
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x091420);
 
@@ -228,7 +232,7 @@ function Movement() {
 }
 
 function BuildHouse() {
-  new  Lamp(0, 0, 4, .34);
+  new  Lamp(0, 0, 4, .2);
   // Master Bedroom
   new Wall(0, 0, 0, 35, 4);
   new Wall(3.5*5, 0, 3.5*3, 3.5*6, 4, {
