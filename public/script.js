@@ -10,8 +10,8 @@ let scene, camera, renderer, controls, clock;
 
 let keyboard = {};
 let player = {
-  speed: .23,
-  feetRay: new THREE.Raycaster()
+  speed: .08,
+  feetRay: new THREE.Raycaster(),
 }
 
 let v = .2;
@@ -116,17 +116,17 @@ class Floor {
 }
 
 class Lamp {
-  constructor(x, y, z, size) {
+  constructor(x, y, z, size=1) {
     this.x = x;
     this.y = y;
     this.z = z;
-    this.size = size;
+    this.size = size*.24;
     this.downed = false;
     var scope = this;
     this.loader = new FBXLoader();
     this.loader.setPath("/assets/lamp/");
     this.loader.load("lamp.fbx", fbx => {
-      fbx.scale.setScalar(size);
+      fbx.scale.setScalar(this.size);
       fbx.traverse(child => {
         if(child.isMesh) {
           child.material = new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load("assets/lamp/lamp_texture.png")});
@@ -168,6 +168,37 @@ class Lamp {
     }
   }
 }
+
+class Closet {
+  constructor(x, y, z, size=1) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.size = size*.7;
+    this.downed = false;
+    var scope = this;
+    this.loader = new FBXLoader();
+    this.loader.setPath("/assets/closet/");
+    this.loader.load("closet.fbx", fbx => {
+      fbx.scale.setScalar(this.size);
+      fbx.traverse(child => {
+        if(child.isMesh) {
+          child.material = new THREE.MeshBasicMaterial({map: new THREE.TextureLoader().load("assets/closet/closet_texture.png")});
+          child.material.map.magFilter = THREE.NearestFilter;
+          child.material.map.minFilter = THREE.LinearMipMapLinearFilter;
+        }
+      });
+      fbx.position.x = x;
+      fbx.position.y = y;
+      fbx.position.z = z;
+      scope.model = fbx;
+      scope.model.scope = scope;
+      scene.add(fbx);
+      blocks.push(scope.model);
+    });
+  }
+}
+
 
 class Color {
   constructor(hex, intensity=15) {
@@ -230,6 +261,14 @@ function Update() {
 
 function Movement() {
   if(keyboard[87] || keyboard[83] || keyboard[65] || keyboard[68]) {
+    if(keyboard[16]) {
+      player.speed = .03;
+      camera.position.y = 1;
+    }else {
+      player.speed = .08;
+      camera.position.y = 2;
+    }
+
     if(keyboard[87]) {
       controls.moveForward(player.speed);
     }
@@ -285,7 +324,6 @@ function Movement() {
 function BuildHouse() {
   // ***** MAIN FLOOR *****
   // Master Bedroom
-  new Lamp(0, 0, 4, .2);
   new Wall(0, 0, 0, 35, 4, {
     color: white
   });
