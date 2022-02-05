@@ -29,7 +29,6 @@ class Wall {
     this.options = options;
     this.material = new THREE.MeshBasicMaterial({
       color: options.color || 0xbd4b48,
-      //map: options.map || checker
     });
     this.geometry = new THREE.BoxGeometry(sx, sy, options.clip ? 0.07 : 0.08);
     this.mesh = new THREE.Mesh(this.geometry, this.material);
