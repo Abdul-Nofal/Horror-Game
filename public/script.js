@@ -199,7 +199,6 @@ class Closet {
   }
 }
 
-
 class Color {
   constructor(hex, intensity=15) {
     this.hex = hex;
@@ -237,6 +236,7 @@ function Start() {
 
   clock = new THREE.Clock();
 
+
   BuildHouse();
 }
 
@@ -244,18 +244,21 @@ function Start() {
 function Update() {
   requestAnimationFrame(Update);
   Movement();
+
   player.feetRay.set(camera.position, new THREE.Vector3(0, -1, 0));
 
-  // calculate objects intersecting the picking ray
 	const intersects = player.feetRay.intersectObjects( scene.children );
 
 	for ( let i = 0; i < intersects.length; i ++ ) {
-    if(intersects[i].distance > 2.05) {
+    console.log(intersects[i]);
+    if(intersects[i].distance > 2.1) {
       camera.position.y -= .1;
-    }else if(intersects[i].distance < 1.95) {
+    }else if(intersects[i].distance < 1.9) {
       camera.position.y += .1;
+    }else {
+      camera.position.y = intersects[i].point.y + 2;
     }
-	}
+  }
   renderer.render(scene, camera);
 };
 
@@ -263,10 +266,10 @@ function Movement() {
   if(keyboard[87] || keyboard[83] || keyboard[65] || keyboard[68]) {
     if(keyboard[16]) {
       player.speed = .03;
-      camera.position.y = 1;
+      //camera.position.y = 1;
     }else {
       player.speed = .08;
-      camera.position.y = 2;
+      //camera.position.y = 2;
     }
 
     if(keyboard[87]) {
@@ -384,8 +387,10 @@ function BuildHouse() {
     },
     color: white
   });
-  new Floor(0, 0, 14*3.5, 1.5*3.5, 16*3.5, {
-    color: black
+  new Floor(0, -2, 14*3.5, 1.5*3.5, 16*3.5, {
+    rotation: {
+      x: 75
+    }
   });
   new Floor(0, 4, 14*3.5, 1.5*3.5, 16*3.5, {
     color: grey
