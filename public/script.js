@@ -389,10 +389,8 @@ function BuildHouse() {
     },
     color: white
   });
-  new Floor(0, -2, 14*3.5, 1.5*3.5, 16*3.5, {
-    rotation: {
-      x: 75
-    }
+  new Floor(0, 0, 14*3.5, 1.5*3.5, 16*3.5, {
+    color: black
   });
   new Floor(0, 4, 14*3.5, 1.5*3.5, 16*3.5, {
     color: grey
