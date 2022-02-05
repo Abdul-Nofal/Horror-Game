@@ -2,3 +2,16 @@ body {
   margin: 0;
   overflow: hidden;
 }
+
+.crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 5px;
+  width: 5px;
+  background: white;
+  border: 1px black solid;
+  border-radius: 50%;
+  opacity: .6;
+}

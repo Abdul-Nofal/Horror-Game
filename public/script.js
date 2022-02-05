@@ -12,6 +12,7 @@ let keyboard = {};
 let player = {
   speed: .08,
   feetRay: new THREE.Raycaster(),
+  isCrouching: false
 }
 
 let v = .2;
@@ -245,18 +246,19 @@ function Update() {
   requestAnimationFrame(Update);
   Movement();
 
+  // Player Gravity
   player.feetRay.set(camera.position, new THREE.Vector3(0, -1, 0));
 
 	const intersects = player.feetRay.intersectObjects( scene.children );
 
 	for ( let i = 0; i < intersects.length; i ++ ) {
     console.log(intersects[i]);
-    if(intersects[i].distance > 2.1) {
+    if(intersects[i].distance > (player.isCrouching ? 1.1 : 2.1)) {
       camera.position.y -= .1;
-    }else if(intersects[i].distance < 1.9) {
+    }else if(intersects[i].distance < (player.isCrouching ? 0.9 : 1.9)) {
       camera.position.y += .1;
     }else {
-      camera.position.y = intersects[i].point.y + 2;
+      camera.position.y = intersects[i].point.y + (player.isCrouching ? 1 : 2);
     }
   }
   renderer.render(scene, camera);
@@ -266,10 +268,10 @@ function Movement() {
   if(keyboard[87] || keyboard[83] || keyboard[65] || keyboard[68]) {
     if(keyboard[16]) {
       player.speed = .03;
-      //camera.position.y = 1;
+      player.isCrouching = true;
     }else {
       player.speed = .08;
-      //camera.position.y = 2;
+      player.isCrouching = false;
     }
 
     if(keyboard[87]) {
